@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sampark.ContactDetectorTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-07-01T12:42:19.704Z" hostname="Nitins-MacBook-Pro.local" time="0.003">
+  <properties/>
+  <testcase name="returns false for a digit-only entry" classname="com.sampark.ContactDetectorTest" time="0.001"/>
+  <testcase name="returns false for a name with digits and punctuation but no letters" classname="com.sampark.ContactDetectorTest" time="0.0"/>
+  <testcase name="returns true for a name containing Latin characters" classname="com.sampark.ContactDetectorTest" time="0.0"/>
+  <testcase name="returns true for a name mixing Latin and Devanagari" classname="com.sampark.ContactDetectorTest" time="0.001"/>
+  <testcase name="returns false for a Devanagari-only name" classname="com.sampark.ContactDetectorTest" time="0.001"/>
+  <testcase name="returns true for a name with only punctuation and Latin letters" classname="com.sampark.ContactDetectorTest" time="0.0"/>
+  <testcase name="returns false for an empty string" classname="com.sampark.ContactDetectorTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

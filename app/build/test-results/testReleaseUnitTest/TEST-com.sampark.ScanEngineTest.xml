@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sampark.ScanEngineTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-07-01T12:42:19.725Z" hostname="Nitins-MacBook-Pro.local" time="0.003">
+  <properties/>
+  <testcase name="scan returns count of successfully transliterated contacts" classname="com.sampark.ScanEngineTest" time="0.001"/>
+  <testcase name="scan skips a digit-only contact" classname="com.sampark.ScanEngineTest" time="0.0"/>
+  <testcase name="scan skips a contact with a Devanagari-only name" classname="com.sampark.ScanEngineTest" time="0.0"/>
+  <testcase name="scan transliterates a Latin-name contact and writes custom field" classname="com.sampark.ScanEngineTest" time="0.001"/>
+  <testcase name="scan silently skips a contact when transliteration returns null" classname="com.sampark.ScanEngineTest" time="0.0"/>
+  <testcase name="scan skips a contact that already has a Sampark custom field" classname="com.sampark.ScanEngineTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

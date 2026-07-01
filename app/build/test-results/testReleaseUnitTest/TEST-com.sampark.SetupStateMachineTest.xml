@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sampark.SetupStateMachineTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-07-01T12:42:19.731Z" hostname="Nitins-MacBook-Pro.local" time="0.002">
+  <properties/>
+  <testcase name="onStartTapped transitions from WELCOME to REQUESTING_PERMISSIONS" classname="com.sampark.SetupStateMachineTest" time="0.001"/>
+  <testcase name="initial state is WELCOME" classname="com.sampark.SetupStateMachineTest" time="0.0"/>
+  <testcase name="onPermissionsGranted writes setupComplete to prefs" classname="com.sampark.SetupStateMachineTest" time="0.0"/>
+  <testcase name="onPermissionDenied transitions to PERMISSION_DENIED" classname="com.sampark.SetupStateMachineTest" time="0.0"/>
+  <testcase name="onPermissionsGranted transitions to SETUP_COMPLETE" classname="com.sampark.SetupStateMachineTest" time="0.001"/>
+  <testcase name="onRetryPermissions transitions from PERMISSION_DENIED back to REQUESTING_PERMISSIONS" classname="com.sampark.SetupStateMachineTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

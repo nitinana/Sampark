@@ -1,0 +1,16 @@
+R_DEF: Internal format may change without notice
+local
+id btnDone
+id btnOpenSettings
+id btnRollback
+id btnScan
+id btnStart
+id screenActive
+id screenInactive
+id screenPermissionDenied
+id screenScanComplete
+id screenScanning
+id screenWelcome
+id tvScanCount
+layout activity_main
+style Theme.Sampark

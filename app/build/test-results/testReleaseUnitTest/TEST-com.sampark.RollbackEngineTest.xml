@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sampark.RollbackEngineTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-07-01T12:42:19.710Z" hostname="Nitins-MacBook-Pro.local" time="0.013">
+  <properties/>
+  <testcase name="rollback handles multiple contacts restoring all that match" classname="com.sampark.RollbackEngineTest" time="0.011"/>
+  <testcase name="rollback skips a contact whose name was manually edited after transliteration" classname="com.sampark.RollbackEngineTest" time="0.001"/>
+  <testcase name="rollback restores original English name when current name matches transliterated" classname="com.sampark.RollbackEngineTest" time="0.0"/>
+  <testcase name="rollback deletes all custom fields after restoring names" classname="com.sampark.RollbackEngineTest" time="0.0"/>
+  <testcase name="rollback skips a contact that was deleted after transliteration" classname="com.sampark.RollbackEngineTest" time="0.0"/>
+  <testcase name="rollback is resumable — already-restored contacts are skipped on second run" classname="com.sampark.RollbackEngineTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

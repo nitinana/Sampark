@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sampark.AppRouterTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-07-01T12:42:18.670Z" hostname="Nitins-MacBook-Pro.local" time="0.026">
+  <properties/>
+  <testcase name="routes to INACTIVE when setup complete and no custom fields" classname="com.sampark.AppRouterTest" time="0.021"/>
+  <testcase name="routes to SCANNING when scan_in_progress is true" classname="com.sampark.AppRouterTest" time="0.001"/>
+  <testcase name="SCANNING takes priority over custom fields check" classname="com.sampark.AppRouterTest" time="0.002"/>
+  <testcase name="routes to SETUP when setup is not complete" classname="com.sampark.AppRouterTest" time="0.001"/>
+  <testcase name="routes to ACTIVE when setup complete and custom fields exist" classname="com.sampark.AppRouterTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
