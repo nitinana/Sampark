@@ -1,7 +1,7 @@
 # मराठी संपर्क (Marathi Contacts) — Architecture Design
 
 **Status:** Approved, pending implementation plan.
-**Related docs:** `docs/Requirement.md` (product spec, screens, decided edge cases), `docs/UseCase-Install-And-Translate.md` (UC1–UC9, Cockburn-format use cases).
+**Related docs:** `docs/Requirement.md` (product spec, screens, decided edge cases), `docs/UseCase-Install-And-Translate.md` (UC1–UC9, Cockburn-format use cases), `docs/design/Swarra Anande Static Gallery/Marathi Contacts App.dc.html` (visual design source — exported Claude Design canvas, 11 artboards covering all screens/sub-states).
 
 This spec covers *how* the app is built. It does not re-derive product decisions already settled in the two docs above — it assumes them as given and only makes them concrete in code terms.
 
@@ -62,10 +62,36 @@ com.sampark
 │   ├─ navigation/
 │   │   └─ SamparkNavHost.kt
 │   └─ theme/
-│       └─ Theme.kt, Type.kt            (Devanagari-friendly type scale, warm palette, 64dp+ touch targets)
+│       └─ Theme.kt, Type.kt            (palette/type scale from the design file — see "Visual design" below)
 ├─ AppContainer.kt                      (manual DI root)
 └─ MainActivity.kt
 ```
+
+## Visual design
+
+Source of truth: `docs/design/Swarra Anande Static Gallery/Marathi Contacts App.dc.html` (exported Claude Design canvas). All 9 screens plus the running/paused sub-states are fully designed there — this is implemented as-is, not re-interpreted.
+
+**Palette** (OKLCH):
+- Background: `oklch(97% 0.015 75)` — warm, near-white throughout.
+- Primary text: `oklch(24% 0.02 50)` (headings), `oklch(38% 0.02 50)` (body).
+- Translate-direction actions (Welcome/Start, Continue, Translate Again, OK, Go to Settings): amber `oklch(56% 0.15 45)`.
+- Rollback-direction actions (Bring Back English, Yes-revert-it): rose `oklch(55% 0.10 350)`.
+- Resume (either direction): soft amber-orange `oklch(72% 0.14 70)` — deliberately not the same as the primary translate amber, and never red, since resuming isn't an error state.
+- Success/Home-Marathi-state icon accent: green `oklch(55% 0.11 150)`.
+- Secondary/outline buttons: transparent fill, `oklch(85% 0.02 50)` border, `oklch(45% 0.02 50)` text.
+
+**Typography:** Noto Sans Devanagari (400/500/600/700), loaded via Google Fonts. Headings ~26–34px, body ~19–21px, primary button label ~22–25px — all comfortably above Requirement.md's 20sp/28sp minimums.
+
+**Components:**
+- Primary buttons: full-width pill, ~76px tall, 22px corner radius, drop shadow tinted to the button's own color.
+- Secondary/outline buttons: ~56px tall, 18px corner radius, transparent background, thin border, no shadow — clearly lower visual weight, per the "no more than one prominent button" rule.
+- Progress indicator: a **circular** conic-gradient ring with the percentage centered inside it (not a linear bar) — `RunProgressScreen`'s progress UI should be built as a circular ring, not `LinearProgressIndicator`.
+- Icons are simple custom illustrations built from basic shapes (circles, rounded rects) tinted to match each screen's accent color, not standard Material icon glyphs — a friendly, non-technical visual language consistent with the "icon/illustration-first" requirement.
+- The Translating/Rollback-running screens include a live **before → after name preview card** ("Swarra Anande → स्वारा आनंदे") beneath the status text — a nice concrete reassurance detail not called out in Requirement.md; `RunProgressScreen` should show the most-recently-processed contact's original/translated name pair here, sourced from the ledger.
+
+**Two conflicts between the design file and decisions made after it was created — resolved in favor of the later decisions:**
+- The design's Home/Marathi-state screen (4a) still shows the secondary "पुन्हा तपासा" (re-check) link — **omit this**; UC4 was dropped, new-contact detection is deferred to a future phase.
+- The design's Rollback-paused screen (6b) still shows a "रद्द करा" (Cancel) button alongside Resume — **omit this**; rollback has no Cancel option (see UC2/UC6/UC7). The paused-rollback screen renders as a single centered "सुरू ठेवा" button only, not the two-button stack shown in the design file.
 
 ## Data layer
 
@@ -123,7 +149,7 @@ Single function, `resolveStartDestination(): Screen`, implementing UC1/UC2/UC3/U
 
 ## UI layer
 
-Seven Compose screens (UC4's "re-check" screen removed). `RunProgressScreen` is shared between translate and rollback, parameterized by `direction: Direction`, rendering the Cancel button only when `direction == TRANSLATE` (per the pause/cancel asymmetry decided earlier). `HomeScreen` renders one of two states based on `direction`/`phase` from `AppStatusRepository`. Navigation start destination comes from `AppRouter.resolveStartDestination()` at `MainActivity` launch.
+Seven Compose screens (UC4's "re-check" screen removed), built from the design file per the "Visual design" section above — including its two adjustments (no re-check link on Home, no Cancel button on Rollback-paused). `RunProgressScreen` is shared between translate and rollback, parameterized by `direction: Direction`, rendering the Cancel button only when `direction == TRANSLATE` (per the pause/cancel asymmetry decided earlier) and using the design's accent color for that direction (amber for translate, rose for rollback). `HomeScreen` renders one of two states based on `direction`/`phase` from `AppStatusRepository`. Navigation start destination comes from `AppRouter.resolveStartDestination()` at `MainActivity` launch.
 
 ## Error handling / edge cases (traceability to decisions already made)
 
