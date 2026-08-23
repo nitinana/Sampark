@@ -13,6 +13,9 @@ interface LedgerDao {
     @Query("UPDATE ledger SET status = :status WHERE lookupKey = :lookupKey")
     suspend fun updateStatus(lookupKey: String, status: LedgerStatus)
 
+    @Query("UPDATE ledger SET translatedName = :translatedName, status = :status WHERE lookupKey = :lookupKey")
+    suspend fun updateTranslatedNameAndStatus(lookupKey: String, translatedName: String, status: LedgerStatus)
+
     @Query("SELECT COUNT(*) FROM ledger")
     fun countAll(): Flow<Int>
 
