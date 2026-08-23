@@ -98,9 +98,14 @@ class FakeContactsProvider : ContentProvider() {
                     it.displayName = newName
                     updated++
                 }
-                val raw = rawContacts.find { it.id == rawContactId }
-                if (raw != null) {
-                    contacts.find { it.id == raw.contactId }?.displayNamePrimary = newName
+                // Only mirror into the aggregate Contacts row if the update actually
+                // matched a real Data row — otherwise a wrong mimetype/raw-contact-id
+                // in production code would silently "succeed" against this fake.
+                if (updated > 0) {
+                    val raw = rawContacts.find { it.id == rawContactId }
+                    if (raw != null) {
+                        contacts.find { it.id == raw.contactId }?.displayNamePrimary = newName
+                    }
                 }
                 updated
             }
@@ -125,18 +130,32 @@ class FakeContactsProvider : ContentProvider() {
             }
 
             RAW_CONTACTS -> {
-                val contactId = extractLongArg(selection, selectionArgs, ContactsContract.RawContacts.CONTACT_ID)
-                val matching = if (contactId != null) rawContacts.filter { it.contactId == contactId } else rawContacts
+                val matching = when {
+                    selection == null -> rawContacts
+                    matchesSingleColumnSelection(selection, ContactsContract.RawContacts.CONTACT_ID) -> {
+                        val contactId = selectionArgs?.getOrNull(0)?.toLongOrNull()
+                        if (contactId == null) emptyList() else rawContacts.filter { it.contactId == contactId }
+                    }
+                    // Unrecognized selection column: fail closed (empty), never fall
+                    // through to "return everything" — a wrong column name in
+                    // production code must show up as a test failure, not a silent pass.
+                    else -> emptyList()
+                }
                 cursorFromRawContacts(projection, matching)
             }
 
             CONTACTS -> {
-                val id = extractLongArg(selection, selectionArgs, ContactsContract.Contacts._ID)
-                val lookupKey = extractStringArg(selection, selectionArgs, ContactsContract.Contacts.LOOKUP_KEY)
                 val matching = when {
-                    id != null -> contacts.filter { it.id == id }
-                    lookupKey != null -> contacts.filter { it.lookupKey == lookupKey }
-                    else -> contacts
+                    selection == null -> contacts
+                    matchesSingleColumnSelection(selection, ContactsContract.Contacts._ID) -> {
+                        val id = selectionArgs?.getOrNull(0)?.toLongOrNull()
+                        if (id == null) emptyList() else contacts.filter { it.id == id }
+                    }
+                    matchesSingleColumnSelection(selection, ContactsContract.Contacts.LOOKUP_KEY) -> {
+                        val lookupKey = selectionArgs?.getOrNull(0)
+                        if (lookupKey == null) emptyList() else contacts.filter { it.lookupKey == lookupKey }
+                    }
+                    else -> emptyList()
                 }
                 cursorFromContacts(projection, matching)
             }
@@ -163,22 +182,23 @@ class FakeContactsProvider : ContentProvider() {
         }
     }
 
+    /**
+     * Matches only the exact single-column shape production code uses:
+     * "<column> = ?". Deliberately strict (no startsWith/substring matching)
+     * so a selection against a different column can never be mistaken for
+     * this one.
+     */
+    private fun matchesSingleColumnSelection(selection: String, column: String): Boolean =
+        selection.trim() == "$column = ?"
+
     private fun parseDataSelection(selection: String?, args: Array<String>?): Pair<Long, String>? {
         if (selection == null || args == null || args.size < 2) return null
-        // Expected shape: "raw_contact_id = ? AND mimetype = ?"
+        val expected = "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+        // Verify the selection actually names RAW_CONTACT_ID/MIMETYPE before
+        // trusting args[0]/args[1] positionally — a selection built against the
+        // wrong columns must not silently match by position alone.
+        if (selection.trim() != expected) return null
         return args[0].toLongOrNull()?.let { it to args[1] }
-    }
-
-    private fun extractLongArg(selection: String?, args: Array<String>?, column: String): Long? {
-        if (selection == null || args == null || args.isEmpty()) return null
-        if (!selection.startsWith("$column =") && !selection.startsWith("$column=")) return null
-        return args[0].toLongOrNull()
-    }
-
-    private fun extractStringArg(selection: String?, args: Array<String>?, column: String): String? {
-        if (selection == null || args == null || args.isEmpty()) return null
-        if (!selection.startsWith("$column =") && !selection.startsWith("$column=")) return null
-        return args[0]
     }
 
     private fun cursorFromRawContacts(projection: Array<out String>?, rows: List<RawContactRow>): Cursor {

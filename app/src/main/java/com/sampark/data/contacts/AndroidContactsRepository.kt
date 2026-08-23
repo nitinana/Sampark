@@ -81,6 +81,10 @@ class AndroidContactsRepository(private val context: Context) : ContactsReposito
         )
     }
 
+    // Intentionally single-raw-contact: returns the first raw contact under the
+    // aggregate. Multi-raw-contact aggregation (e.g. one contact backed by both
+    // a Google and a phone-storage raw contact) is an accepted trade-off — the
+    // ledger keys/drift-compares on the aggregate lookupKey, not per-raw-contact.
     private fun findRawContactId(lookupKey: String): Long? {
         val resolver = context.contentResolver
         val contactUri = ContactsContract.Contacts.getLookupUri(
