@@ -17,7 +17,7 @@ val NotoSansDevanagari = FontFamily(
 
 val SamparkTypography = Typography(
     headlineLarge = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.Bold, fontSize = 30.sp),
-    headlineMedium = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.Bold, fontSize = 26.sp),
+    headlineMedium = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.Bold, fontSize = 28.sp),
     bodyLarge = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.Normal, fontSize = 20.sp, lineHeight = 30.sp),
     bodyMedium = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.Normal, fontSize = 19.sp),
     labelLarge = TextStyle(fontFamily = NotoSansDevanagari, fontWeight = FontWeight.SemiBold, fontSize = 24.sp)
