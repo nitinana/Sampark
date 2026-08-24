@@ -20,7 +20,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.sampark.AppContainer
+import com.sampark.data.ledger.LedgerDao
+import com.sampark.data.ledger.LedgerStatus
 import com.sampark.data.status.AppStatusRepository
 import com.sampark.data.status.Direction
 import com.sampark.data.status.Phase
@@ -33,6 +36,7 @@ import com.sampark.ui.screens.PermissionExplainerScreen
 import com.sampark.ui.screens.RollbackConfirmScreen
 import com.sampark.ui.screens.RunProgressScreen
 import com.sampark.ui.screens.WelcomeScreen
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -40,6 +44,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
     val navController: NavHostController = rememberNavController()
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val coldStartRunEntry = remember(startDestination) { ColdStartRunEntry(startDestination) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -93,9 +98,15 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
             val viewModel: RunViewModel = viewModel(
                 factory = container.runViewModelFactory(Direction.TRANSLATE)
             )
+            // rememberSaveable so a configuration change does not re-evaluate (and
+            // thereby re-consume) the cold-start decision for this back stack entry.
+            val startPaused = rememberSaveable {
+                coldStartRunEntry.isColdStartEntryFor(Routes.RUN_TRANSLATE)
+            }
             RunProgressScreenRoute(
                 direction = Direction.TRANSLATE,
                 viewModel = viewModel,
+                startPaused = startPaused,
                 appStatusRepository = container.appStatusRepository,
                 onFinished = { navController.navigate(Routes.COMPLETION) { popUpTo(Routes.RUN_TRANSLATE) { inclusive = true } } }
             )
@@ -105,17 +116,28 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
             val viewModel: RunViewModel = viewModel(
                 factory = container.runViewModelFactory(Direction.ROLLBACK)
             )
+            val startPaused = rememberSaveable {
+                coldStartRunEntry.isColdStartEntryFor(Routes.RUN_ROLLBACK)
+            }
             RunProgressScreenRoute(
                 direction = Direction.ROLLBACK,
                 viewModel = viewModel,
+                startPaused = startPaused,
                 appStatusRepository = container.appStatusRepository,
                 onFinished = { navController.navigate(Routes.COMPLETION) { popUpTo(Routes.RUN_ROLLBACK) { inclusive = true } } }
             )
         }
 
         composable(Routes.COMPLETION) {
+            var summaryText by remember { mutableStateOf<String?>(null) }
+            LaunchedEffect(Unit) {
+                summaryText = buildCompletionSummary(
+                    direction = container.appStatusRepository.direction.first(),
+                    ledgerDao = container.ledgerDao
+                )
+            }
             CompletionScreen(
-                summaryText = "पूर्ण झाले",
+                summaryText = summaryText ?: "",
                 onOk = {
                     navController.navigate(Routes.HOME) {
                         popUpTo(Routes.HOME) { inclusive = true }
@@ -172,13 +194,18 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
 private fun RunProgressScreenRoute(
     direction: Direction,
     viewModel: RunViewModel,
+    startPaused: Boolean,
     appStatusRepository: AppStatusRepository,
     onFinished: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val phase by appStatusRepository.phase.collectAsState(initial = Phase.RUNNING)
 
-    LaunchedEffect(Unit) { viewModel.start() }
+    LaunchedEffect(Unit) {
+        // A cold start into a RUNNING run must never auto-resume — show the paused
+        // prompt and wait for an explicit Resume tap (see ColdStartRunEntry).
+        if (startPaused) viewModel.showPausedWithoutStarting() else viewModel.start()
+    }
     LaunchedEffect(phase) {
         if (phase == Phase.COMPLETED) {
             onFinished()
@@ -192,4 +219,21 @@ private fun RunProgressScreenRoute(
         onResume = viewModel::resume,
         onCancel = viewModel::cancel
     )
+}
+
+/**
+ * Real, count-based completion copy. Replaces an earlier placeholder that just
+ * repeated the screen's own heading.
+ */
+internal suspend fun buildCompletionSummary(direction: Direction, ledgerDao: LedgerDao): String {
+    val skipped = ledgerDao.countByStatus(LedgerStatus.SKIPPED_EXTERNAL_EDIT).first()
+    val main = if (direction == Direction.ROLLBACK) {
+        val rolledBack = ledgerDao.countByStatus(LedgerStatus.ROLLED_BACK).first()
+        "$rolledBack संपर्क परत इंग्रजीत बदलले."
+    } else {
+        val translated = ledgerDao.countByStatus(LedgerStatus.TRANSLATED).first()
+        "$translated संपर्कांची नावं मराठीत बदलली."
+    }
+    if (skipped == 0) return main
+    return main + " $skipped संपर्कांची नावं मराठीत बदलल्यानंतर बदलली गेली होती, म्हणून ती जशी आहेत तशीच सुरक्षित ठेवली आहेत."
 }

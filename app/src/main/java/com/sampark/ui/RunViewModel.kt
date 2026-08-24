@@ -8,6 +8,7 @@ import com.sampark.data.status.AppStatusRepository
 import com.sampark.data.status.Direction
 import com.sampark.data.status.Phase
 import com.sampark.domain.RunEngine
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,20 +36,53 @@ class RunViewModel(
     private var runJob: Job? = null
 
     fun start() {
+        // Guard against re-invocation while a run is already in flight. start() is
+        // called from a LaunchedEffect that re-runs whenever the activity is
+        // recreated (rotation, font-scale change, dark-mode toggle), and without
+        // this guard a second launch would orphan the first still-running loop:
+        // pause() would then only cancel the second one while the first kept
+        // silently renaming contacts behind a "paused" UI.
+        if (runJob?.isActive == true) return
         runJob = viewModelScope.launch {
             refreshCounts()
             val onProcessed: suspend (String, String) -> Unit = { original, translated ->
                 _uiState.value = _uiState.value.copy(lastProcessed = original to translated)
                 refreshCounts()
             }
-            if (direction == Direction.TRANSLATE) {
-                runEngine.runTranslate(onProcessed)
-            } else {
-                runEngine.runRollback(onProcessed)
+            try {
+                if (direction == Direction.TRANSLATE) {
+                    runEngine.runTranslate(onProcessed)
+                } else {
+                    runEngine.runRollback(onProcessed)
+                }
+            } catch (cancellation: CancellationException) {
+                // pause()/cancel() cancel this job — must propagate, never swallow.
+                throw cancellation
+            } catch (error: Exception) {
+                // A SecurityException/RemoteException/DB failure mid-run must not
+                // crash the app halfway through rewriting someone's contacts.
+                // Leave phase as RUNNING (so the run is resumable) and show the
+                // existing, reassuring paused screen.
+                _uiState.value = _uiState.value.copy(isPaused = true)
+                return@launch
             }
             appStatusRepository.setPhase(Phase.COMPLETED)
             _uiState.value = _uiState.value.copy(isPaused = false)
         }
+    }
+
+    /**
+     * Cold-start re-entry into a run that was left RUNNING by a previous process:
+     * show the paused screen instead of silently resuming. The user must tap
+     * Resume — an explicit, fresh tap — before any contact is touched again.
+     *
+     * No-op if this ViewModel has already started a run (it survives configuration
+     * changes, so this can be re-invoked while a resumed run is in flight).
+     */
+    fun showPausedWithoutStarting() {
+        if (runJob != null) return
+        _uiState.value = _uiState.value.copy(isPaused = true)
+        viewModelScope.launch { refreshCounts() }
     }
 
     fun pause() {
