@@ -12,7 +12,7 @@ class RunEngine(
     private val ledgerDao: LedgerDao,
     private val transliterationEngine: TransliterationEngine
 ) {
-    suspend fun runTranslate(onContactProcessed: suspend (originalName: String, translatedName: String) -> Unit = { _, _ -> }) {
+    suspend fun seedLedgerForTranslate() {
         ledgerDao.clearAll()
         val eligibleContacts = contactsRepository.getEligibleContacts()
         ledgerDao.insertAll(
@@ -20,7 +20,9 @@ class RunEngine(
                 LedgerEntity(contact.lookupKey, contact.name, "", LedgerStatus.PENDING)
             }
         )
+    }
 
+    suspend fun runTranslate(onContactProcessed: suspend (originalName: String, translatedName: String) -> Unit = { _, _ -> }) {
         val pendingRows = ledgerDao.getRowsByStatus(LedgerStatus.PENDING)
         for (row in pendingRows) {
             currentCoroutineContext().ensureActive()

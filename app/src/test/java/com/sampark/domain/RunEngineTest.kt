@@ -16,10 +16,13 @@ import org.robolectric.RobolectricTestRunner
 private class FakeContactsRepository : ContactsRepository {
     val names = mutableMapOf<String, String>() // lookupKey -> current name
     var permission = true
+    var getEligibleContactsCallCount = 0
 
     override fun hasContactsPermission() = permission
-    override fun getEligibleContacts(): List<ContactRef> =
-        names.map { (key, name) -> ContactRef(key, name) }
+    override fun getEligibleContacts(): List<ContactRef> {
+        getEligibleContactsCallCount++
+        return names.map { (key, name) -> ContactRef(key, name) }
+    }
 
     override fun getCurrentName(lookupKey: String): String? = names[lookupKey]
 
@@ -59,7 +62,51 @@ class RunEngineTest {
     }
 
     @Test
-    fun `runTranslate seeds the ledger from currently eligible contacts, clearing any stale rows first`() = runTest {
+    fun `runTranslate does not seed the ledger itself`() = runTest {
+        val dao = createDao()
+        val contacts = FakeContactsRepository().apply {
+            names["key1"] = "Nitin"
+            names["key2"] = "Swarra"
+        }
+        val engine = RunEngine(contacts, dao, TransliterationEngine())
+
+        // Ledger is empty; nothing has called seedLedgerForTranslate().
+        engine.runTranslate()
+
+        assertEquals(0, dao.getRowsByStatus(LedgerStatus.TRANSLATED).size)
+        assertEquals(0, contacts.getEligibleContactsCallCount)
+    }
+
+    @Test
+    fun `runTranslate resumed mid-run does not touch already TRANSLATED rows`() = runTest {
+        val dao = createDao()
+        // key1 was already translated in an interrupted earlier pass of the same run.
+        val contacts = FakeContactsRepository().apply {
+            names["key1"] = "निनान"
+            names["key2"] = "Swarra"
+        }
+        dao.insertAll(
+            listOf(
+                LedgerEntity("key1", "Nitin", "निनान", LedgerStatus.TRANSLATED),
+                LedgerEntity("key2", "Swarra", "", LedgerStatus.PENDING)
+            )
+        )
+        val engine = RunEngine(contacts, dao, TransliterationEngine())
+
+        // Simulates RunViewModel.resume() -> start() -> runTranslate() again, with no reseed.
+        engine.runTranslate()
+
+        assertEquals(0, contacts.getEligibleContactsCallCount)
+        val translated = dao.getRowsByStatus(LedgerStatus.TRANSLATED)
+        assertEquals(2, translated.size)
+        val key1Row = translated.first { it.lookupKey == "key1" }
+        assertEquals("Nitin", key1Row.originalName)
+        assertEquals("निनान", key1Row.translatedName)
+        assertEquals("निनान", contacts.getCurrentName("key1"))
+    }
+
+    @Test
+    fun `seedLedgerForTranslate seeds the ledger from currently eligible contacts, clearing any stale rows first`() = runTest {
         val dao = createDao()
         // Stale row left over from a previous run, for a contact that no longer exists.
         dao.insertAll(listOf(LedgerEntity("stale-key", "Ghost", "घोस्ट", LedgerStatus.TRANSLATED)))
@@ -70,12 +117,12 @@ class RunEngineTest {
         }
         val engine = RunEngine(contacts, dao, TransliterationEngine())
 
-        engine.runTranslate()
+        engine.seedLedgerForTranslate()
 
-        val translated = dao.getRowsByStatus(LedgerStatus.TRANSLATED)
-        assertEquals(2, translated.size)
-        assertEquals(0, dao.getRowsByStatus(LedgerStatus.PENDING).size)
-        assertEquals(true, translated.none { it.lookupKey == "stale-key" })
+        val pending = dao.getRowsByStatus(LedgerStatus.PENDING)
+        assertEquals(2, pending.size)
+        assertEquals(0, dao.getRowsByStatus(LedgerStatus.TRANSLATED).size)
+        assertEquals(true, pending.none { it.lookupKey == "stale-key" })
     }
 
     @Test

@@ -48,6 +48,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
         coroutineScope.launch {
             container.appStatusRepository.setPermissionRequestedBefore(true)
             if (granted) {
+                container.runEngine.seedLedgerForTranslate()
                 container.appStatusRepository.setDirection(Direction.TRANSLATE)
                 container.appStatusRepository.setPhase(Phase.RUNNING)
                 navController.navigate(Routes.RUN_TRANSLATE) {
@@ -141,6 +142,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
                             navController.navigate(Routes.ROLLBACK_CONFIRM)
                         } else {
                             coroutineScope.launch {
+                                container.runEngine.seedLedgerForTranslate()
                                 container.appStatusRepository.setDirection(Direction.TRANSLATE)
                                 container.appStatusRepository.setPhase(Phase.RUNNING)
                                 navController.navigate(Routes.RUN_TRANSLATE) { popUpTo(Routes.HOME) { inclusive = true } }
