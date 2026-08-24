@@ -5,6 +5,7 @@ import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.provider.ContactsContract
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -81,7 +82,7 @@ class AndroidContactsRepositoryTest {
     fun `hasContactsPermission is false without permission`() {
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        assertFalse(repository.hasContactsPermission())
+        assertFalse(runBlocking { repository.hasContactsPermission() })
     }
 
     @Test
@@ -89,7 +90,7 @@ class AndroidContactsRepositoryTest {
         grantContactsPermission()
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        assertTrue(repository.hasContactsPermission())
+        assertTrue(runBlocking { repository.hasContactsPermission() })
     }
 
     @Test
@@ -98,7 +99,7 @@ class AndroidContactsRepositoryTest {
         insertContact("Nitin Anande")
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        val contacts = repository.getEligibleContacts()
+        val contacts = runBlocking { repository.getEligibleContacts() }
         assertTrue(contacts.any { it.name == "Nitin Anande" })
     }
 
@@ -108,8 +109,24 @@ class AndroidContactsRepositoryTest {
         insertContact("Sim Contact", accountType = "vnd.sec.contact.sim", accountName = "SIM")
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        val contacts = repository.getEligibleContacts()
+        val contacts = runBlocking { repository.getEligibleContacts() }
         assertFalse(contacts.any { it.name == "Sim Contact" })
+    }
+
+    @Test
+    fun `getEligibleContacts joins account types per contact, not across contacts`() {
+        // Regression guard for the batched (2-query) account-type lookup: excluded
+        // account types must only exclude their own contact.
+        grantContactsPermission()
+        insertContact("Whatsapp Only", accountType = "com.whatsapp", accountName = "WhatsApp")
+        insertContact("Sim Contact", accountType = "vnd.sec.contact.sim", accountName = "SIM")
+        insertContact("Phone Contact")
+        val context = ApplicationProvider.getApplicationContext<android.app.Application>()
+        val repository = AndroidContactsRepository(context)
+
+        val contacts = runBlocking { repository.getEligibleContacts() }
+
+        assertEquals(listOf("Phone Contact"), contacts.map { it.name })
     }
 
     @Test
@@ -118,7 +135,7 @@ class AndroidContactsRepositoryTest {
         insertContact("नितीन आनंदे")
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        val contacts = repository.getEligibleContacts()
+        val contacts = runBlocking { repository.getEligibleContacts() }
         assertFalse(contacts.any { it.name == "नितीन आनंदे" })
     }
 
@@ -129,9 +146,9 @@ class AndroidContactsRepositoryTest {
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
 
-        repository.updateName(lookupKey, "निनान आनंदे")
+        runBlocking { repository.updateName(lookupKey, "निनान आनंदे") }
 
-        assertEquals("निनान आनंदे", repository.getCurrentName(lookupKey))
+        assertEquals("निनान आनंदे", runBlocking { repository.getCurrentName(lookupKey) })
     }
 
     @Test
@@ -139,6 +156,6 @@ class AndroidContactsRepositoryTest {
         grantContactsPermission()
         val context = ApplicationProvider.getApplicationContext<android.app.Application>()
         val repository = AndroidContactsRepository(context)
-        assertNull(repository.getCurrentName("does-not-exist"))
+        assertNull(runBlocking { repository.getCurrentName("does-not-exist") })
     }
 }

@@ -14,10 +14,10 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 
 private class RouterFakeContactsRepository(var permission: Boolean) : ContactsRepository {
-    override fun hasContactsPermission() = permission
-    override fun getEligibleContacts(): List<ContactRef> = emptyList()
-    override fun getCurrentName(lookupKey: String): String? = null
-    override fun updateName(lookupKey: String, newName: String) {}
+    override suspend fun hasContactsPermission() = permission
+    override suspend fun getEligibleContacts(): List<ContactRef> = emptyList()
+    override suspend fun getCurrentName(lookupKey: String): String? = null
+    override suspend fun updateName(lookupKey: String, newName: String) {}
 }
 
 class AppRouterTest {

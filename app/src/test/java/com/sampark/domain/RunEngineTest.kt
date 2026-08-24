@@ -18,15 +18,15 @@ private class FakeContactsRepository : ContactsRepository {
     var permission = true
     var getEligibleContactsCallCount = 0
 
-    override fun hasContactsPermission() = permission
-    override fun getEligibleContacts(): List<ContactRef> {
+    override suspend fun hasContactsPermission() = permission
+    override suspend fun getEligibleContacts(): List<ContactRef> {
         getEligibleContactsCallCount++
         return names.map { (key, name) -> ContactRef(key, name) }
     }
 
-    override fun getCurrentName(lookupKey: String): String? = names[lookupKey]
+    override suspend fun getCurrentName(lookupKey: String): String? = names[lookupKey]
 
-    override fun updateName(lookupKey: String, newName: String) {
+    override suspend fun updateName(lookupKey: String, newName: String) {
         names[lookupKey] = newName
     }
 }
