@@ -59,6 +59,26 @@ class RunEngineTest {
     }
 
     @Test
+    fun `runTranslate seeds the ledger from currently eligible contacts, clearing any stale rows first`() = runTest {
+        val dao = createDao()
+        // Stale row left over from a previous run, for a contact that no longer exists.
+        dao.insertAll(listOf(LedgerEntity("stale-key", "Ghost", "घोस्ट", LedgerStatus.TRANSLATED)))
+
+        val contacts = FakeContactsRepository().apply {
+            names["key1"] = "Nitin"
+            names["key2"] = "Swarra"
+        }
+        val engine = RunEngine(contacts, dao, TransliterationEngine())
+
+        engine.runTranslate()
+
+        val translated = dao.getRowsByStatus(LedgerStatus.TRANSLATED)
+        assertEquals(2, translated.size)
+        assertEquals(0, dao.getRowsByStatus(LedgerStatus.PENDING).size)
+        assertEquals(true, translated.none { it.lookupKey == "stale-key" })
+    }
+
+    @Test
     fun `runRollback reverts a row whose name still matches translatedName`() = runTest {
         val dao = createDao()
         val contacts = FakeContactsRepository().apply {

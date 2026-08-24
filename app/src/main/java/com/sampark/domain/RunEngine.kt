@@ -2,6 +2,7 @@ package com.sampark.domain
 
 import com.sampark.data.contacts.ContactsRepository
 import com.sampark.data.ledger.LedgerDao
+import com.sampark.data.ledger.LedgerEntity
 import com.sampark.data.ledger.LedgerStatus
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -12,6 +13,14 @@ class RunEngine(
     private val transliterationEngine: TransliterationEngine
 ) {
     suspend fun runTranslate(onContactProcessed: suspend (originalName: String, translatedName: String) -> Unit = { _, _ -> }) {
+        ledgerDao.clearAll()
+        val eligibleContacts = contactsRepository.getEligibleContacts()
+        ledgerDao.insertAll(
+            eligibleContacts.map { contact ->
+                LedgerEntity(contact.lookupKey, contact.name, "", LedgerStatus.PENDING)
+            }
+        )
+
         val pendingRows = ledgerDao.getRowsByStatus(LedgerStatus.PENDING)
         for (row in pendingRows) {
             currentCoroutineContext().ensureActive()

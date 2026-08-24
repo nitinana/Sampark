@@ -21,6 +21,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.sampark.AppContainer
+import com.sampark.data.status.AppStatusRepository
 import com.sampark.data.status.Direction
 import com.sampark.data.status.Phase
 import com.sampark.domain.Routes
@@ -41,22 +42,29 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
     val coroutineScope = rememberCoroutineScope()
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        val granted = grants.values.all { it }
         coroutineScope.launch {
             container.appStatusRepository.setPermissionRequestedBefore(true)
             if (granted) {
                 container.appStatusRepository.setDirection(Direction.TRANSLATE)
                 container.appStatusRepository.setPhase(Phase.RUNNING)
                 navController.navigate(Routes.RUN_TRANSLATE) {
-                    popUpTo(Routes.WELCOME) { inclusive = true }
+                    popUpTo(navController.graph.id) { inclusive = true }
                 }
             } else {
                 navController.navigate(Routes.PERMISSION_DENIED) {
-                    popUpTo(Routes.WELCOME) { inclusive = true }
+                    popUpTo(navController.graph.id) { inclusive = true }
                 }
             }
         }
+    }
+
+    val requestContactsPermissions: () -> Unit = {
+        permissionLauncher.launch(
+            arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS)
+        )
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
@@ -65,9 +73,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
         }
 
         composable(Routes.PERMISSION_EXPLAINER) {
-            PermissionExplainerScreen(
-                onContinue = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) }
-            )
+            PermissionExplainerScreen(onContinue = requestContactsPermissions)
         }
 
         composable(Routes.PERMISSION_DENIED) {
@@ -78,7 +84,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
                     }
                     context.startActivity(intent)
                 },
-                onRetry = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) }
+                onRetry = requestContactsPermissions
             )
         }
 
@@ -89,6 +95,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
             RunProgressScreenRoute(
                 direction = Direction.TRANSLATE,
                 viewModel = viewModel,
+                appStatusRepository = container.appStatusRepository,
                 onFinished = { navController.navigate(Routes.COMPLETION) { popUpTo(Routes.RUN_TRANSLATE) { inclusive = true } } }
             )
         }
@@ -100,6 +107,7 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
             RunProgressScreenRoute(
                 direction = Direction.ROLLBACK,
                 viewModel = viewModel,
+                appStatusRepository = container.appStatusRepository,
                 onFinished = { navController.navigate(Routes.COMPLETION) { popUpTo(Routes.RUN_ROLLBACK) { inclusive = true } } }
             )
         }
@@ -107,29 +115,40 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
         composable(Routes.COMPLETION) {
             CompletionScreen(
                 summaryText = "पूर्ण झाले",
-                onOk = { navController.navigate(Routes.HOME) { popUpTo(Routes.COMPLETION) { inclusive = true } } }
+                onOk = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.HOME) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
 
         composable(Routes.HOME) {
             var direction by remember { mutableStateOf(Direction.NONE) }
+            var directionLoaded by remember { mutableStateOf(false) }
             LaunchedEffect(Unit) {
-                container.appStatusRepository.direction.collect { direction = it }
+                container.appStatusRepository.direction.collect {
+                    direction = it
+                    directionLoaded = true
+                }
             }
-            HomeScreen(
-                direction = direction,
-                onRollbackOrTranslateAgain = {
-                    if (direction == Direction.TRANSLATE) {
-                        navController.navigate(Routes.ROLLBACK_CONFIRM)
-                    } else {
-                        coroutineScope.launch {
-                            container.appStatusRepository.setDirection(Direction.TRANSLATE)
-                            container.appStatusRepository.setPhase(Phase.RUNNING)
-                            navController.navigate(Routes.RUN_TRANSLATE) { popUpTo(Routes.HOME) { inclusive = true } }
+            if (directionLoaded) {
+                HomeScreen(
+                    direction = direction,
+                    onRollbackOrTranslateAgain = {
+                        if (direction == Direction.TRANSLATE) {
+                            navController.navigate(Routes.ROLLBACK_CONFIRM)
+                        } else {
+                            coroutineScope.launch {
+                                container.appStatusRepository.setDirection(Direction.TRANSLATE)
+                                container.appStatusRepository.setPhase(Phase.RUNNING)
+                                navController.navigate(Routes.RUN_TRANSLATE) { popUpTo(Routes.HOME) { inclusive = true } }
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         }
 
         composable(Routes.ROLLBACK_CONFIRM) {
@@ -148,12 +167,18 @@ fun SamparkNavHost(container: AppContainer, startDestination: String) {
 }
 
 @Composable
-private fun RunProgressScreenRoute(direction: Direction, viewModel: RunViewModel, onFinished: () -> Unit) {
+private fun RunProgressScreenRoute(
+    direction: Direction,
+    viewModel: RunViewModel,
+    appStatusRepository: AppStatusRepository,
+    onFinished: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
+    val phase by appStatusRepository.phase.collectAsState(initial = Phase.RUNNING)
 
     LaunchedEffect(Unit) { viewModel.start() }
-    LaunchedEffect(uiState.done, uiState.total) {
-        if (uiState.total > 0 && uiState.done == uiState.total && !uiState.isPaused) {
+    LaunchedEffect(phase) {
+        if (phase == Phase.COMPLETED) {
             onFinished()
         }
     }
@@ -163,9 +188,6 @@ private fun RunProgressScreenRoute(direction: Direction, viewModel: RunViewModel
         uiState = uiState,
         onPause = viewModel::pause,
         onResume = viewModel::resume,
-        onCancel = {
-            viewModel.cancel()
-            onFinished()
-        }
+        onCancel = viewModel::cancel
     )
 }
