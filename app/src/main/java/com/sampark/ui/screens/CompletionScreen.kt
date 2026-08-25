@@ -1,0 +1,51 @@
+package com.sampark.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.sampark.ui.components.PrimaryButton
+import com.sampark.ui.theme.BackgroundColor
+import com.sampark.ui.theme.BodyTextColor
+import com.sampark.ui.theme.HeadingTextColor
+import com.sampark.ui.theme.TranslateAmber
+
+@Composable
+fun CompletionScreen(summaryText: String, onOk: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundColor)
+            .verticalScroll(rememberScrollState())
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "पूर्ण झाले!",
+            style = MaterialTheme.typography.headlineLarge,
+            color = HeadingTextColor,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.padding(8.dp))
+        Text(
+            summaryText,
+            style = MaterialTheme.typography.bodyLarge,
+            color = BodyTextColor,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.padding(24.dp))
+        PrimaryButton(text = "ठीक आहे", color = TranslateAmber, onClick = onOk)
+    }
+}
